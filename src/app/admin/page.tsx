@@ -181,9 +181,9 @@ export default function AdminDashboard() {
     email: "contact@bloodchai.org",
   });
   
-  // Filter states
-  const [donorFilter, setDonorFilter] = useState({ division: "", bloodGroup: "", search: "" });
-  const [requestFilter, setRequestFilter] = useState({ status: "", urgency: "" });
+  // Filter states - using undefined for better Select handling
+  const [donorFilter, setDonorFilter] = useState({ division: "all", bloodGroup: "all", search: "" });
+  const [requestFilter, setRequestFilter] = useState({ status: "all", urgency: "all" });
   
   // Edit states
   const [editingPayment, setEditingPayment] = useState<PaymentConfig | null>(null);
@@ -194,18 +194,27 @@ export default function AdminDashboard() {
   const [showDonorDetails, setShowDonorDetails] = useState<Donor | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/login");
-    } else if (!isLoading && user && !isAdmin) {
-      router.push("/");
-    }
+    // Only redirect if we're sure the user is not authenticated
+    // Wait for loading to complete and check multiple times to avoid false redirects
+    if (isLoading) return;
+    
+    const timer = setTimeout(() => {
+      if (!user) {
+        router.push("/login");
+      } else if (!isAdmin) {
+        router.push("/");
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [user, isLoading, isAdmin, router]);
 
   useEffect(() => {
     if (user && isAdmin) {
       fetchAllData();
     }
-  }, [user, isAdmin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isAdmin]);
 
   const fetchAllData = async () => {
     setIsLoadingData(true);
@@ -344,10 +353,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // Filter functions
+  // Filter functions - with null safety
   const filteredDonors = donors.filter((d) => {
-    if (donorFilter.division && d.division !== donorFilter.division) return false;
-    if (donorFilter.bloodGroup && d.bloodGroup !== donorFilter.bloodGroup) return false;
+    if (!d) return false;
+    if (donorFilter.division && donorFilter.division !== "all" && d.division !== donorFilter.division) return false;
+    if (donorFilter.bloodGroup && donorFilter.bloodGroup !== "all" && d.bloodGroup !== donorFilter.bloodGroup) return false;
     if (donorFilter.search) {
       const search = donorFilter.search.toLowerCase();
       return (
@@ -359,8 +369,9 @@ export default function AdminDashboard() {
   });
 
   const filteredRequests = requests.filter((r) => {
-    if (requestFilter.status && r.status !== requestFilter.status) return false;
-    if (requestFilter.urgency && r.urgency !== requestFilter.urgency) return false;
+    if (!r) return false;
+    if (requestFilter.status && requestFilter.status !== "all" && r.status !== requestFilter.status) return false;
+    if (requestFilter.urgency && requestFilter.urgency !== "all" && r.urgency !== requestFilter.urgency) return false;
     return true;
   });
 
@@ -729,7 +740,7 @@ export default function AdminDashboard() {
                         <SelectValue placeholder="Division" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {divisions.map((d) => (
                           <SelectItem key={d} value={d}>{d}</SelectItem>
                         ))}
@@ -740,7 +751,7 @@ export default function AdminDashboard() {
                         <SelectValue placeholder="Blood" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {bloodGroups.map((g) => (
                           <SelectItem key={g} value={g}>{g}</SelectItem>
                         ))}
@@ -858,7 +869,7 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="accepted">Accepted</SelectItem>
                     <SelectItem value="declined">Declined</SelectItem>
@@ -870,7 +881,7 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="Urgency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="critical">Critical</SelectItem>
                     <SelectItem value="urgent">Urgent</SelectItem>
                     <SelectItem value="normal">Normal</SelectItem>
